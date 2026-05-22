@@ -50,16 +50,22 @@ export default async function Home() {
             status="ready"
           />
           <DashboardCard
-            href="#"
-            title="Triggers"
-            description="Define rules that decide which template fires for which event."
-            status="coming-soon"
+            href="/event-types"
+            title="Event types"
+            description="Define categories of things that can happen (e.g. user.upgraded)."
+            status="ready"
           />
           <DashboardCard
-            href="#"
+            href="/triggers"
+            title="Triggers"
+            description="Define rules that decide which template fires for which event."
+            status="ready"
+          />
+          <DashboardCard
+            href="/events"
             title="Events"
             description="Inspect the event stream. Fire test events through the engine."
-            status="coming-soon"
+            status="ready"
           />
           <DashboardCard
             href="#"
