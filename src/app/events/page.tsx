@@ -1,11 +1,13 @@
 import Link from "next/link";
 
 import { createClient } from "@/lib/supabase/server";
+import { parsePlaceholders } from "@/lib/templates/render";
 import type { PreviewResult, RunResult } from "@/lib/triggers/evaluate";
 
 import { logout } from "../login/actions";
 
 import { fireTestEvent, previewTriggers } from "./actions";
+import { PayloadEditor } from "./payload-editor";
 
 type FiredSummary = {
   event_id: string;
@@ -29,23 +31,47 @@ export default async function EventsPage({
   const sp = await searchParams;
 
   const supabase = await createClient();
-  const [{ data: events }, { data: eventTypes }] = await Promise.all([
-    supabase
-      .from("events")
-      .select(
-        "id, received_at, idempotency_key, payload, event_types(name)",
-      )
-      .order("received_at", { ascending: false })
-      .limit(50),
-    supabase
-      .from("event_types")
-      .select("id, name, payload_schema")
-      .order("name"),
-  ]);
+  const [{ data: events }, { data: eventTypes }, { data: triggers }] =
+    await Promise.all([
+      supabase
+        .from("events")
+        .select(
+          "id, received_at, idempotency_key, payload, event_types(name)",
+        )
+        .order("received_at", { ascending: false })
+        .limit(50),
+      supabase.from("event_types").select("id, name").order("name"),
+      supabase
+        .from("triggers")
+        .select(
+          "event_type_id, recipient_expr, dedupe_key_expr, templates(placeholders)",
+        ),
+    ]);
 
   const fired = parseFired(sp.fired);
   const preview = parsePreview(sp.preview);
-  const samplePayload = buildSamplePayload(eventTypes?.[0]?.payload_schema);
+
+  // For each event type, pre-populate the payload editor with fields the
+  // marketer is likely to need — pulled from any trigger that references this
+  // event type (its recipient/dedup paths) and the placeholders declared on
+  // those triggers' templates. Empty event types just start with one blank
+  // row that the user can fill in.
+  const fieldsByEventType: Record<string, string[]> = {};
+  for (const t of triggers ?? []) {
+    const fields = (fieldsByEventType[t.event_type_id] ??= []);
+    fields.push(stripPathPrefix(t.recipient_expr));
+    if (t.dedupe_key_expr) {
+      fields.push(stripPathPrefix(t.dedupe_key_expr));
+    }
+    if (t.templates?.placeholders) {
+      for (const p of parsePlaceholders(t.templates.placeholders)) {
+        fields.push(p.name);
+      }
+    }
+  }
+  for (const k of Object.keys(fieldsByEventType)) {
+    fieldsByEventType[k] = [...new Set(fieldsByEventType[k])].sort();
+  }
 
   return (
     <div className="flex flex-col flex-1 bg-zinc-50 dark:bg-black">
@@ -185,16 +211,21 @@ export default async function EventsPage({
               </select>
             </label>
 
-            <label className="flex flex-col gap-1.5">
-              <span className="text-sm font-medium">Payload (JSON)</span>
-              <textarea
-                name="payload"
-                rows={8}
-                spellCheck={false}
-                defaultValue={samplePayload}
-                className="rounded-md border border-black/12 dark:border-white/18 bg-transparent px-3 py-2 text-sm font-mono outline-none focus:border-zinc-900 dark:focus:border-zinc-100 resize-y"
-              />
-            </label>
+            <div className="flex flex-col gap-1.5">
+              <span className="text-sm font-medium">Payload</span>
+              <p className="text-xs text-zinc-500 dark:text-zinc-500">
+                The data attached to the event — like which user upgraded, to
+                which plan. Pre-filled with fields any trigger for this event
+                type uses; edit, remove, or add more.
+              </p>
+              {eventTypes && eventTypes.length > 0 && (
+                <PayloadEditor
+                  eventTypeSelectName="event_type_id"
+                  fieldsByEventType={fieldsByEventType}
+                  initialEventTypeId={eventTypes[0].id}
+                />
+              )}
+            </div>
 
             <div className="flex items-center gap-3">
               <button
@@ -336,42 +367,9 @@ function parseFired(raw: string | undefined): FiredSummary | null {
   }
 }
 
-function buildSamplePayload(schema: unknown): string {
-  // Best-effort: build a minimal example from a JSON-schema-shaped object.
-  // Falls back to a generic example.
-  try {
-    const sample = sampleFromSchema(schema);
-    return JSON.stringify(sample, null, 2);
-  } catch {
-    return JSON.stringify(
-      {
-        user: { id: "u1", email: "alex@example.com", name: "Alex" },
-        plan: "pro",
-      },
-      null,
-      2,
-    );
-  }
-}
-
-function sampleFromSchema(schema: unknown): unknown {
-  if (!schema || typeof schema !== "object") return {};
-  const s = schema as Record<string, unknown>;
-  const type = s.type;
-  if (type === "object" && s.properties && typeof s.properties === "object") {
-    const out: Record<string, unknown> = {};
-    for (const [key, prop] of Object.entries(s.properties)) {
-      out[key] = sampleFromSchema(prop);
-    }
-    return out;
-  }
-  if (type === "string") {
-    if (Array.isArray(s.enum) && s.enum.length > 0) return s.enum[0];
-    if (s.format === "email") return "alex@example.com";
-    return "example";
-  }
-  if (type === "number" || type === "integer") return 0;
-  if (type === "boolean") return false;
-  if (type === "array") return [];
-  return null;
+// Strip a leading `$.` from a JSONPath-style expression. Recipient and dedup
+// fields use `$.user.email` shorthand; the payload editor wants the bare
+// `user.email` form.
+function stripPathPrefix(expr: string): string {
+  return expr.startsWith("$.") ? expr.slice(2) : expr;
 }
