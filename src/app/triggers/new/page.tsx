@@ -37,6 +37,10 @@ export default async function NewTriggerPage({
           <h1 className="text-2xl font-semibold tracking-tight mt-2">
             New trigger
           </h1>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
+            Rule: when this event arrives and conditions match, send this
+            template.
+          </p>
         </div>
 
         <form
@@ -50,19 +54,12 @@ export default async function NewTriggerPage({
             placeholder="Welcome to Pro"
           />
 
-          <FieldArea
-            label="Description"
-            name="description"
-            rows={2}
-            placeholder="Sends the welcome email when a user upgrades to a paid plan."
-          />
-
           <SelectField
             label="Event type"
             name="event_type_id"
             required
             options={eventTypes.map((e) => ({ value: e.id, label: e.name }))}
-            hint="Only events of this type will be evaluated against this trigger."
+            hintLink={{ href: "/event-types", text: "Manage event types" }}
           />
 
           <SelectField
@@ -70,52 +67,40 @@ export default async function NewTriggerPage({
             name="template_id"
             required
             options={
-              templates?.map((t) => ({
-                value: t.id,
-                label: `${t.name} (${t.slug})`,
-              })) ?? []
+              templates?.map((t) => ({ value: t.id, label: t.name })) ?? []
             }
-            hint={
-              templates?.length
-                ? "Selected template will be rendered against the event payload."
-                : "No templates yet — create one first under /templates."
+            hintLink={
+              !templates?.length
+                ? { href: "/templates/new", text: "Create one first" }
+                : undefined
             }
           />
 
           <Field
-            label="Recipient expression"
+            label="Send to"
             name="recipient_expr"
-            required
             mono
             defaultValue="$.user.email"
-            placeholder="$.user.email"
-            hint="Dot-notation path into the event payload that resolves to the recipient email."
+            hint="Path into the event payload that holds the recipient email."
           />
 
           <div>
             <span className="text-sm font-medium">Conditions</span>
             <p className="text-xs text-zinc-500 dark:text-zinc-500 mt-1 mb-3">
-              Optional. If empty, the trigger fires on every event of this type.
+              Optional. If empty, fires on every event of this type.
             </p>
             <ConditionsEditor initialJson="" />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field
-              label="Dedupe key expression"
-              name="dedupe_key_expr"
-              mono
-              placeholder="$.user.id"
-              hint="Optional. If set, the trigger sends at most once per resolved key value."
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              name="once_per_recipient"
+              defaultChecked
+              className="h-4 w-4"
             />
-            <Field
-              label="Cooldown (seconds)"
-              name="cooldown_seconds"
-              type="number"
-              placeholder="86400"
-              hint="With dedupe set: minimum seconds between sends per key. Blank = strict once-ever."
-            />
-          </div>
+            <span>Send at most once per recipient (30-day cooldown)</span>
+          </label>
 
           <label className="flex items-center gap-2 text-sm">
             <input
@@ -124,7 +109,7 @@ export default async function NewTriggerPage({
               defaultChecked
               className="h-4 w-4"
             />
-            <span>Active (fire on incoming events)</span>
+            <span>Live (fire on incoming events)</span>
           </label>
 
           {error && (
@@ -155,7 +140,6 @@ function Field({
   label,
   name,
   required,
-  type,
   placeholder,
   hint,
   mono,
@@ -164,7 +148,6 @@ function Field({
   label: string;
   name: string;
   required?: boolean;
-  type?: string;
   placeholder?: string;
   hint?: string;
   mono?: boolean;
@@ -177,7 +160,7 @@ function Field({
         {required && <span className="text-red-600 ml-0.5">*</span>}
       </span>
       <input
-        type={type ?? "text"}
+        type="text"
         name={name}
         required={required}
         placeholder={placeholder}
@@ -193,63 +176,35 @@ function Field({
   );
 }
 
-function FieldArea({
-  label,
-  name,
-  required,
-  rows,
-  placeholder,
-  hint,
-  defaultValue,
-}: {
-  label: string;
-  name: string;
-  required?: boolean;
-  rows?: number;
-  placeholder?: string;
-  hint?: string;
-  defaultValue?: string;
-}) {
-  return (
-    <label className="flex flex-col gap-1.5">
-      <span className="text-sm font-medium">
-        {label}
-        {required && <span className="text-red-600 ml-0.5">*</span>}
-      </span>
-      <textarea
-        name={name}
-        required={required}
-        rows={rows ?? 4}
-        placeholder={placeholder}
-        defaultValue={defaultValue}
-        className="rounded-md border border-black/12 dark:border-white/18 bg-transparent px-3 py-2 text-sm outline-none focus:border-zinc-900 dark:focus:border-zinc-100 resize-y"
-      />
-      {hint && (
-        <span className="text-xs text-zinc-500 dark:text-zinc-500">{hint}</span>
-      )}
-    </label>
-  );
-}
-
 function SelectField({
   label,
   name,
   required,
   options,
-  hint,
+  hintLink,
 }: {
   label: string;
   name: string;
   required?: boolean;
   options: { value: string; label: string }[];
-  hint?: string;
+  hintLink?: { href: string; text: string };
 }) {
   return (
     <label className="flex flex-col gap-1.5">
-      <span className="text-sm font-medium">
-        {label}
-        {required && <span className="text-red-600 ml-0.5">*</span>}
-      </span>
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium">
+          {label}
+          {required && <span className="text-red-600 ml-0.5">*</span>}
+        </span>
+        {hintLink && (
+          <Link
+            href={hintLink.href}
+            className="text-xs text-zinc-600 dark:text-zinc-400 hover:underline"
+          >
+            {hintLink.text}
+          </Link>
+        )}
+      </div>
       <select
         name={name}
         required={required}
@@ -265,9 +220,6 @@ function SelectField({
           </option>
         ))}
       </select>
-      {hint && (
-        <span className="text-xs text-zinc-500 dark:text-zinc-500">{hint}</span>
-      )}
     </label>
   );
 }

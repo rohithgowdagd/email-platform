@@ -48,7 +48,6 @@ export default async function EditTemplatePage({
 
   const placeholders = parsePlaceholders(template.placeholders);
   const sampleValues = buildSampleValues(placeholders);
-  const placeholdersText = JSON.stringify(placeholders, null, 2);
 
   const updateAction = updateTemplate.bind(null, id);
   const deleteAction = deleteTemplate.bind(null, id);
@@ -140,53 +139,32 @@ export default async function EditTemplatePage({
             defaultValue={template.name}
           />
           <Field
-            label="Slug"
-            name="slug"
-            required
-            mono
-            defaultValue={template.slug}
-          />
-          <Field
             label="Subject"
             name="subject"
             required
             defaultValue={template.subject}
-            hint="May include {{placeholders}}."
+            hint={`May include placeholders like {{user.name}} — auto-detected from your content.`}
           />
           <FieldArea
-            label="HTML body"
+            label="Body"
             name="body_html"
             required
-            rows={10}
+            rows={12}
             defaultValue={template.body_html}
             mono
           />
-          <FieldArea
-            label="Plain-text body"
-            name="body_text"
-            rows={4}
-            defaultValue={template.body_text ?? ""}
-            hint="Optional fallback for clients that don't render HTML."
-          />
-          <Field
-            label="Category"
-            name="category"
-            defaultValue={template.category ?? ""}
-          />
-          <FieldArea
-            label="Description"
-            name="description"
-            rows={2}
-            defaultValue={template.description ?? ""}
-          />
-          <FieldArea
-            label="Placeholders"
-            name="placeholders"
-            rows={8}
-            mono
-            defaultValue={placeholdersText}
-            hint="JSON array of { name, type?, required?, sample? }. Required fields are validated at render time."
-          />
+
+          {placeholders.length > 0 && (
+            <div className="text-xs text-zinc-500 dark:text-zinc-500">
+              Detected placeholders:{" "}
+              {placeholders.map((p) => (
+                <code
+                  key={p.name}
+                  className="font-mono mr-2 text-zinc-700 dark:text-zinc-300"
+                >{`{{${p.name}}}`}</code>
+              ))}
+            </div>
+          )}
 
           <div className="flex items-center gap-3">
             <button

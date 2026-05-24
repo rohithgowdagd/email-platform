@@ -18,7 +18,7 @@ export default async function EditEventTypePage({
   const supabase = await createClient();
   const { data: eventType } = await supabase
     .from("event_types")
-    .select("id, name, description, payload_schema, created_at")
+    .select("id, name, created_at")
     .eq("id", id)
     .single();
 
@@ -87,33 +87,6 @@ export default async function EditEventTypePage({
               defaultValue={eventType.name}
               className="h-10 rounded-md border border-black/12 dark:border-white/18 bg-transparent px-3 text-sm outline-none focus:border-zinc-900 dark:focus:border-zinc-100 font-mono"
             />
-            <span className="text-xs text-zinc-500 dark:text-zinc-500">
-              Renaming will change all references — triggers and events still
-              link by id, so it&apos;s safe.
-            </span>
-          </label>
-
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium">Description</span>
-            <textarea
-              name="description"
-              rows={2}
-              defaultValue={eventType.description ?? ""}
-              className="rounded-md border border-black/12 dark:border-white/18 bg-transparent px-3 py-2 text-sm outline-none focus:border-zinc-900 dark:focus:border-zinc-100 resize-y"
-            />
-          </label>
-
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium">Payload schema</span>
-            <textarea
-              name="payload_schema"
-              rows={12}
-              defaultValue={JSON.stringify(eventType.payload_schema, null, 2)}
-              className="rounded-md border border-black/12 dark:border-white/18 bg-transparent px-3 py-2 text-sm font-mono outline-none focus:border-zinc-900 dark:focus:border-zinc-100 resize-y"
-            />
-            <span className="text-xs text-zinc-500 dark:text-zinc-500">
-              JSON Schema. Used to prefill the &quot;Fire test event&quot; form.
-            </span>
           </label>
 
           <div>

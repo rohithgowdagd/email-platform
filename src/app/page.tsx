@@ -42,42 +42,21 @@ export default async function Home() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <DashboardCard
             href="/templates"
             title="Templates"
-            description="Browse, edit, and test email templates with placeholders."
-            status="ready"
-          />
-          <DashboardCard
-            href="/event-types"
-            title="Event types"
-            description="Define categories of things that can happen (e.g. user.upgraded)."
-            status="ready"
+            description="Write the email content. AI helper inside each template for drafting, rewriting tone, and subject variants."
           />
           <DashboardCard
             href="/triggers"
             title="Triggers"
-            description="Define rules that decide which template fires for which event."
-            status="ready"
-          />
-          <DashboardCard
-            href="/events"
-            title="Events"
-            description="Inspect the event stream. Fire test events through the engine."
-            status="ready"
+            description="Rules that decide when to send what, to whom. Test by firing events from inside."
           />
           <DashboardCard
             href="/sends"
             title="Sends"
-            description="Audit log of every delivery attempt with status and provider IDs."
-            status="ready"
-          />
-          <DashboardCard
-            href="/templates"
-            title="AI helper"
-            description="Draft new copy, rewrite tone, and generate subject line variants. Lives inside each template's editor."
-            status="ready"
+            description="Audit log of every delivery attempt — sent, skipped (dedup), or failed."
           />
         </div>
       </main>
@@ -89,38 +68,19 @@ function DashboardCard({
   href,
   title,
   description,
-  status,
 }: {
   href: string;
   title: string;
   description: string;
-  status: "ready" | "coming-soon";
 }) {
-  const isReady = status === "ready";
-  const content = (
-    <div
-      className={`h-full p-5 rounded-2xl border bg-white dark:bg-zinc-900 transition-colors ${
-        isReady
-          ? "border-black/8 dark:border-white/[.145] hover:border-zinc-900 dark:hover:border-zinc-100"
-          : "border-black/6 dark:border-white/8 opacity-60"
-      }`}
-    >
-      <div className="flex items-center justify-between mb-2">
-        <h2 className="text-base font-medium">{title}</h2>
-        {!isReady && (
-          <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
-            Coming soon
-          </span>
-        )}
-      </div>
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">{description}</p>
-    </div>
-  );
-
-  if (!isReady) return content;
   return (
     <Link href={href} className="block">
-      {content}
+      <div className="h-full p-5 rounded-2xl border bg-white dark:bg-zinc-900 border-black/8 dark:border-white/[.145] hover:border-zinc-900 dark:hover:border-zinc-100 transition-colors">
+        <h2 className="text-base font-medium mb-2">{title}</h2>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          {description}
+        </p>
+      </div>
     </Link>
   );
 }

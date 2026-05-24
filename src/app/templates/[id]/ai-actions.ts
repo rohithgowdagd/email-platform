@@ -12,7 +12,10 @@ import {
   SUBJECT_VARIANTS_SYSTEM,
 } from "@/lib/ai/prompts";
 import { createClient } from "@/lib/supabase/server";
-import { parsePlaceholders } from "@/lib/templates/render";
+import {
+  derivePlaceholders,
+  parsePlaceholders,
+} from "@/lib/templates/render";
 
 export type ActionResult<T> =
   | { ok: true; data: T }
@@ -211,19 +214,45 @@ export async function applyAiSuggestion(
   templateId: string,
   patch: { subject?: string; body_html?: string; body_text?: string },
 ): Promise<ActionResult<{ applied: true }>> {
-  const updates: typeof patch = {};
-  if (typeof patch.subject === "string") updates.subject = patch.subject;
-  if (typeof patch.body_html === "string") updates.body_html = patch.body_html;
-  if (typeof patch.body_text === "string") updates.body_text = patch.body_text;
-
-  if (Object.keys(updates).length === 0) {
+  if (
+    typeof patch.subject !== "string" &&
+    typeof patch.body_html !== "string"
+  ) {
     return { ok: false, error: "Nothing to apply" };
   }
 
+  // Load current values so we can re-derive placeholders against the merged
+  // (post-patch) content — otherwise a body_html-only patch would leave
+  // placeholders stale relative to the subject (or vice versa).
   const supabase = await createClient();
+  const { data: existing, error: loadError } = await supabase
+    .from("templates")
+    .select("subject, body_html")
+    .eq("id", templateId)
+    .single();
+
+  if (loadError || !existing) {
+    return { ok: false, error: loadError?.message ?? "Template not found" };
+  }
+
+  const merged = {
+    subject: typeof patch.subject === "string" ? patch.subject : existing.subject,
+    bodyHtml:
+      typeof patch.body_html === "string" ? patch.body_html : existing.body_html,
+  };
+
   const { error } = await supabase
     .from("templates")
-    .update(updates)
+    .update({
+      ...(typeof patch.subject === "string" ? { subject: patch.subject } : {}),
+      ...(typeof patch.body_html === "string"
+        ? { body_html: patch.body_html }
+        : {}),
+      ...(typeof patch.body_text === "string"
+        ? { body_text: patch.body_text }
+        : {}),
+      placeholders: derivePlaceholders(merged) as never,
+    })
     .eq("id", templateId);
 
   if (error) {

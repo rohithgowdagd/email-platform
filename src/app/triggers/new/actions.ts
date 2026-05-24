@@ -5,26 +5,23 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 
+const ONCE_PER_RECIPIENT_COOLDOWN_SECONDS = 30 * 24 * 60 * 60; // 30 days
+
 function field(formData: FormData, name: string): string {
   const value = formData.get(name);
   return typeof value === "string" ? value.trim() : "";
-}
-
-function optionalField(formData: FormData, name: string): string | null {
-  const value = field(formData, name);
-  return value.length > 0 ? value : null;
 }
 
 export async function createTrigger(formData: FormData) {
   const name = field(formData, "name");
   const eventTypeId = field(formData, "event_type_id");
   const templateId = field(formData, "template_id");
-  const recipientExpr = field(formData, "recipient_expr");
+  const recipientExpr = field(formData, "recipient_expr") || "$.user.email";
 
-  if (!name || !eventTypeId || !templateId || !recipientExpr) {
+  if (!name || !eventTypeId || !templateId) {
     redirect(
       `/triggers/new?error=${encodeURIComponent(
-        "Name, event type, template, and recipient expression are required",
+        "Name, event type, and template are required",
       )}`,
     );
   }
@@ -37,35 +34,29 @@ export async function createTrigger(formData: FormData) {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       redirect(
-        `/triggers/new?error=${encodeURIComponent(`Invalid conditions JSON: ${message}`)}`,
+        `/triggers/new?error=${encodeURIComponent(`Invalid conditions: ${message}`)}`,
       );
     }
   }
 
-  const cooldownRaw = field(formData, "cooldown_seconds");
-  let cooldownSeconds: number | null = null;
-  if (cooldownRaw.length > 0) {
-    const n = Number(cooldownRaw);
-    if (!Number.isFinite(n) || n < 0) {
-      redirect(
-        `/triggers/new?error=${encodeURIComponent(
-          "Cooldown must be a non-negative integer (seconds)",
-        )}`,
-      );
-    }
-    cooldownSeconds = Math.floor(n);
-  }
+  // "Send at most once per recipient": dedup by the same expression that
+  // resolves the recipient. Cooldown = 30 days.
+  const oncePerRecipient = field(formData, "once_per_recipient") === "on";
+  const dedupeKeyExpr = oncePerRecipient ? recipientExpr : null;
+  const cooldownSeconds = oncePerRecipient
+    ? ONCE_PER_RECIPIENT_COOLDOWN_SECONDS
+    : null;
 
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("triggers")
     .insert({
       name,
-      description: optionalField(formData, "description"),
+      description: null,
       event_type_id: eventTypeId,
       template_id: templateId,
       recipient_expr: recipientExpr,
-      dedupe_key_expr: optionalField(formData, "dedupe_key_expr"),
+      dedupe_key_expr: dedupeKeyExpr,
       cooldown_seconds: cooldownSeconds,
       conditions: conditions as never,
       active: field(formData, "active") === "on",

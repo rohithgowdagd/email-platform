@@ -116,12 +116,6 @@ export default async function EditTriggerPage({
             required
             defaultValue={trigger.name}
           />
-          <FieldArea
-            label="Description"
-            name="description"
-            rows={2}
-            defaultValue={trigger.description ?? ""}
-          />
           <SelectField
             label="Event type"
             name="event_type_id"
@@ -138,17 +132,16 @@ export default async function EditTriggerPage({
             required
             options={(templates ?? []).map((t) => ({
               value: t.id,
-              label: `${t.name} (${t.slug})`,
+              label: t.name,
             }))}
             defaultValue={trigger.template_id}
           />
           <Field
-            label="Recipient expression"
+            label="Send to"
             name="recipient_expr"
-            required
             mono
             defaultValue={trigger.recipient_expr}
-            hint="Dot-notation path into the event payload that resolves to the recipient email."
+            hint="Path into the event payload that holds the recipient email."
           />
 
           <div>
@@ -159,27 +152,15 @@ export default async function EditTriggerPage({
             <ConditionsEditor initialJson={conditionsJson} />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field
-              label="Dedupe key expression"
-              name="dedupe_key_expr"
-              mono
-              defaultValue={trigger.dedupe_key_expr ?? ""}
-              placeholder="$.user.id"
-              hint="Optional. If set, the trigger sends at most once per resolved key value."
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              name="once_per_recipient"
+              defaultChecked={trigger.dedupe_key_expr !== null}
+              className="h-4 w-4"
             />
-            <Field
-              label="Cooldown (seconds)"
-              name="cooldown_seconds"
-              type="number"
-              defaultValue={
-                trigger.cooldown_seconds !== null
-                  ? String(trigger.cooldown_seconds)
-                  : ""
-              }
-              hint="With dedupe set: minimum seconds between sends per key. Blank = strict once-ever."
-            />
-          </div>
+            <span>Send at most once per recipient (30-day cooldown)</span>
+          </label>
 
           <label className="flex items-center gap-2 text-sm">
             <input
@@ -188,7 +169,7 @@ export default async function EditTriggerPage({
               defaultChecked={trigger.active}
               className="h-4 w-4"
             />
-            <span>Active (fire on incoming events)</span>
+            <span>Live (fire on incoming events)</span>
           </label>
 
           <div>

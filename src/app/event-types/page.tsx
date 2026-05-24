@@ -20,11 +20,7 @@ export default async function EventTypesPage() {
           </Link>
           <nav className="flex items-center gap-4 text-sm text-zinc-600 dark:text-zinc-400">
             <Link href="/templates">Templates</Link>
-            <Link href="/event-types" className="text-zinc-950 dark:text-zinc-50">
-              Event types
-            </Link>
             <Link href="/triggers">Triggers</Link>
-            <Link href="/events">Events</Link>
             <Link href="/sends">Sends</Link>
           </nav>
         </div>
