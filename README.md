@@ -266,6 +266,23 @@ After login, go to `/events`, pick `user.upgraded`, fill in your real email
 for `user.email`, set `plan=pro`, click **Fire event**. An email lands in your
 inbox in ~10 seconds. Open `/sends` to see the audit row.
 
+### Tests
+
+```bash
+npm test          # full suite, ~500ms
+npm run test:watch
+```
+
+Vitest unit suite (85 tests, two files) covering the two modules that encode
+the platform's actual decisions: the conditions DSL evaluator
+([`src/lib/triggers/conditions.ts`](src/lib/triggers/conditions.ts)) and the
+template renderer + placeholder helpers
+([`src/lib/templates/render.ts`](src/lib/templates/render.ts)). Scope is
+deliberately pure-logic — Supabase calls and the engine's request-time loop
+aren't tested at the unit layer, because a stub surface big enough to cover
+them would dwarf the production code without adding signal. The trade-off is
+called out in the file headers.
+
 ---
 
 ## Scope decisions — "what I chose to leave out, and why"
