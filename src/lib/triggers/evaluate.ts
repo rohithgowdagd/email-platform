@@ -27,6 +27,130 @@ export type RunResult = {
   send_id?: string;
 };
 
+export type PreviewDecision = "would_send" | "would_skip" | "no_match";
+
+export type PreviewResult = {
+  trigger_id: string;
+  trigger_name: string;
+  decision: PreviewDecision;
+  reason: string | null;
+  recipient: string | null;
+  dedupe_key: string | null;
+};
+
+// Dry-run the engine's decision step against a hypothetical payload:
+//   - finds active triggers for the event type
+//   - evaluates conditions
+//   - resolves recipient + dedup key
+//   - checks the existing sends table for dedup / cooldown conflicts
+//
+// Does NOT insert an `events` row, render the template, send email, or write
+// to `sends`. Useful for "if this event came in right now, what would fire?"
+export async function previewEvent(
+  supabase: Client,
+  eventTypeId: string,
+  payload: unknown,
+): Promise<PreviewResult[]> {
+  const { data: triggers, error } = await supabase
+    .from("triggers")
+    .select(
+      "id, name, conditions, recipient_expr, dedupe_key_expr, cooldown_seconds",
+    )
+    .eq("event_type_id", eventTypeId)
+    .eq("active", true);
+
+  if (error) {
+    throw new Error(`Failed to load triggers: ${error.message}`);
+  }
+
+  const results: PreviewResult[] = [];
+  for (const trigger of triggers ?? []) {
+    const conditions = parseConditions(trigger.conditions);
+    const matched = evaluateConditions(conditions, payload);
+
+    const recipientRaw = resolvePath(payload, trigger.recipient_expr);
+    const recipient =
+      typeof recipientRaw === "string" && recipientRaw.trim()
+        ? recipientRaw.trim()
+        : null;
+
+    let dedupeKey: string | null = null;
+    if (trigger.dedupe_key_expr) {
+      const raw = resolvePath(payload, trigger.dedupe_key_expr);
+      if (raw !== undefined && raw !== null && raw !== "") {
+        dedupeKey = String(raw);
+      }
+    }
+
+    if (!matched) {
+      results.push({
+        trigger_id: trigger.id,
+        trigger_name: trigger.name,
+        decision: "no_match",
+        reason: "conditions did not match",
+        recipient,
+        dedupe_key: dedupeKey,
+      });
+      continue;
+    }
+
+    if (!recipient) {
+      results.push({
+        trigger_id: trigger.id,
+        trigger_name: trigger.name,
+        decision: "would_skip",
+        reason: "no recipient",
+        recipient: null,
+        dedupe_key: dedupeKey,
+      });
+      continue;
+    }
+
+    if (dedupeKey) {
+      let query = supabase
+        .from("sends")
+        .select("id, sent_at")
+        .eq("trigger_id", trigger.id)
+        .eq("dedupe_key", dedupeKey)
+        .in("status", ["queued", "sent"])
+        .order("sent_at", { ascending: false })
+        .limit(1);
+      if (trigger.cooldown_seconds && trigger.cooldown_seconds > 0) {
+        const cutoff = new Date(
+          Date.now() - trigger.cooldown_seconds * 1000,
+        ).toISOString();
+        query = query.gte("sent_at", cutoff);
+      }
+      const { data: existing } = await query.maybeSingle();
+      if (existing) {
+        const reason = trigger.cooldown_seconds
+          ? `cooldown (${trigger.cooldown_seconds}s)`
+          : "dedup";
+        results.push({
+          trigger_id: trigger.id,
+          trigger_name: trigger.name,
+          decision: "would_skip",
+          reason,
+          recipient,
+          dedupe_key: dedupeKey,
+        });
+        continue;
+      }
+    }
+
+    results.push({
+      trigger_id: trigger.id,
+      trigger_name: trigger.name,
+      decision: "would_send",
+      reason: null,
+      recipient,
+      dedupe_key: dedupeKey,
+    });
+  }
+
+  return results;
+}
+
 // Run a single event through the engine: find active matching triggers,
 // evaluate conditions, apply dedup/cooldown, render, send, and audit.
 // Returns one RunResult per trigger that matched conditions; triggers whose

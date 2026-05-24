@@ -57,6 +57,43 @@ export function parsePlaceholders(raw: unknown): Placeholder[] {
   });
 }
 
+// Collect every `{{path}}` reference in a piece of text, deduped.
+export function extractReferences(text: string): Set<string> {
+  const refs = new Set<string>();
+  for (const m of text.matchAll(PLACEHOLDER_RE)) {
+    refs.add(m[1]);
+  }
+  return refs;
+}
+
+export type PlaceholderValidationInput = {
+  subject: string;
+  bodyHtml: string;
+  bodyText: string | null;
+  placeholders: Placeholder[];
+};
+
+// Diff between paths referenced in the template body and paths declared in the
+// placeholders array. Undeclared = referenced but not declared (a typo, almost
+// always — guard against it at save time). Unused = declared but not referenced
+// (often intentional, but worth surfacing as a soft warning).
+export function validatePlaceholders(input: PlaceholderValidationInput): {
+  undeclared: string[];
+  unused: string[];
+} {
+  const referenced = new Set<string>([
+    ...extractReferences(input.subject),
+    ...extractReferences(input.bodyHtml),
+    ...extractReferences(input.bodyText ?? ""),
+  ]);
+  const declared = new Set(input.placeholders.map((p) => p.name));
+
+  const undeclared = [...referenced].filter((r) => !declared.has(r)).sort();
+  const unused = [...declared].filter((d) => !referenced.has(d)).sort();
+
+  return { undeclared, unused };
+}
+
 export function renderTemplate(input: RenderInput): RenderResult {
   const missing = input.placeholders
     .filter((p) => p.required)

@@ -1,23 +1,7 @@
 import Link from "next/link";
 
 import { createEventType } from "./actions";
-
-const SCHEMA_HINT = `{
-  "type": "object",
-  "required": ["user"],
-  "properties": {
-    "user": {
-      "type": "object",
-      "required": ["id", "email"],
-      "properties": {
-        "id":    { "type": "string" },
-        "email": { "type": "string", "format": "email" },
-        "name":  { "type": "string" }
-      }
-    },
-    "plan": { "type": "string", "enum": ["pro", "team", "enterprise"] }
-  }
-}`;
+import { PayloadSchemaField } from "./payload-schema-field";
 
 export default async function NewEventTypePage({
   searchParams,
@@ -77,19 +61,7 @@ export default async function NewEventTypePage({
             />
           </label>
 
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium">Payload schema</span>
-            <textarea
-              name="payload_schema"
-              rows={12}
-              placeholder={SCHEMA_HINT}
-              className="rounded-md border border-black/12 dark:border-white/18 bg-transparent px-3 py-2 text-sm font-mono outline-none focus:border-zinc-900 dark:focus:border-zinc-100 resize-y"
-            />
-            <span className="text-xs text-zinc-500 dark:text-zinc-500">
-              Optional JSON Schema describing the expected payload. Used to
-              prefill the &quot;Fire test event&quot; form on /events.
-            </span>
-          </label>
+          <PayloadSchemaField />
 
           {error && (
             <p className="text-sm text-red-600 dark:text-red-400">{error}</p>

@@ -4,7 +4,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
-import { runEvent, type RunResult } from "@/lib/triggers/evaluate";
+import {
+  previewEvent,
+  runEvent,
+  type PreviewResult,
+  type RunResult,
+} from "@/lib/triggers/evaluate";
 
 function field(formData: FormData, name: string): string {
   const value = formData.get(name);
@@ -95,4 +100,42 @@ type FiredSummary = {
 
 function encodeSummary(s: FiredSummary): string {
   return encodeURIComponent(JSON.stringify(s));
+}
+
+// Dry-run: evaluate the engine's decision against a payload without inserting
+// an event row, rendering the template, or sending an email. Demonstrates the
+// "decides which template (if any) to send" step in isolation.
+export async function previewTriggers(formData: FormData) {
+  const eventTypeId = field(formData, "event_type_id");
+  const rawPayload = field(formData, "payload");
+
+  if (!eventTypeId) {
+    redirect(`/events?error=${encodeURIComponent("Pick an event type")}`);
+  }
+
+  let payload: unknown;
+  try {
+    payload = JSON.parse(rawPayload || "{}");
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      throw new Error("payload must be a JSON object");
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    redirect(
+      `/events?error=${encodeURIComponent(`Invalid payload JSON: ${message}`)}`,
+    );
+  }
+
+  const supabase = await createClient();
+
+  let preview: PreviewResult[] = [];
+  try {
+    preview = await previewEvent(supabase, eventTypeId, payload);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    redirect(`/events?error=${encodeURIComponent(message)}`);
+  }
+
+  const summary = encodeURIComponent(JSON.stringify({ preview }));
+  redirect(`/events?preview=${summary}`);
 }

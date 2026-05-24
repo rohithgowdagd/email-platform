@@ -8,6 +8,7 @@ import {
 } from "@/lib/templates/render";
 
 import { deleteTemplate, sendTestEmail, updateTemplate } from "./actions";
+import { AiHelper } from "./ai-helper";
 
 export default async function EditTemplatePage({
   params,
@@ -16,6 +17,7 @@ export default async function EditTemplatePage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{
     saved?: string;
+    warning?: string;
     error?: string;
     test_sent?: string;
     test_error?: string;
@@ -36,6 +38,13 @@ export default async function EditTemplatePage({
   if (!template) {
     notFound();
   }
+
+  // Surface trigger dependencies so the user knows what blocks deletion.
+  const { data: usingTriggers } = await supabase
+    .from("triggers")
+    .select("id, name, active")
+    .eq("template_id", id)
+    .order("name");
 
   const placeholders = parsePlaceholders(template.placeholders);
   const sampleValues = buildSampleValues(placeholders);
@@ -78,9 +87,45 @@ export default async function EditTemplatePage({
             Saved.
           </div>
         )}
+        {sp.warning && (
+          <div className="mb-4 rounded-md border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/30 p-3 text-sm text-amber-700 dark:text-amber-400">
+            {sp.warning}
+          </div>
+        )}
         {sp.error && (
           <div className="mb-4 rounded-md border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/30 p-3 text-sm text-red-700 dark:text-red-400">
             {sp.error}
+          </div>
+        )}
+
+        {usingTriggers && usingTriggers.length > 0 && (
+          <div className="mb-4 rounded-md border border-black/8 dark:border-white/[.145] bg-zinc-50 dark:bg-zinc-950/40 p-3 text-sm">
+            <div className="font-medium text-zinc-700 dark:text-zinc-300">
+              Used by {usingTriggers.length} trigger
+              {usingTriggers.length === 1 ? "" : "s"}
+            </div>
+            <ul className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+              {usingTriggers.map((t) => (
+                <li key={t.id} className="inline-flex items-center gap-1.5">
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${t.active ? "bg-emerald-500" : "bg-zinc-400"}`}
+                  />
+                  <Link
+                    href={`/triggers/${t.id}`}
+                    className="font-medium hover:underline"
+                  >
+                    {t.name}
+                  </Link>
+                  {!t.active && (
+                    <span className="text-zinc-500">(paused)</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+            <p className="text-xs text-zinc-500 dark:text-zinc-500 mt-2">
+              Delete or repoint these triggers first if you want to delete this
+              template.
+            </p>
           </div>
         )}
 
@@ -152,6 +197,8 @@ export default async function EditTemplatePage({
             </button>
           </div>
         </form>
+
+        <AiHelper templateId={id} />
 
         <section className="mt-8 bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-black/8 dark:border-white/[.145]">
           <h2 className="text-lg font-semibold tracking-tight">Send test</h2>

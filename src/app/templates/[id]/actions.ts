@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   parsePlaceholders,
   renderTemplate,
+  validatePlaceholders,
   type Placeholder,
 } from "@/lib/templates/render";
 
@@ -49,6 +50,23 @@ export async function updateTemplate(id: string, formData: FormData) {
     }
   }
 
+  const bodyText = optionalField(formData, "body_text");
+  const parsedPlaceholders = parsePlaceholders(placeholders);
+  const { undeclared, unused } = validatePlaceholders({
+    subject,
+    bodyHtml,
+    bodyText,
+    placeholders: parsedPlaceholders,
+  });
+
+  if (undeclared.length > 0) {
+    redirect(
+      `/templates/${id}?error=${encodeURIComponent(
+        `Body references undeclared placeholders: ${undeclared.join(", ")}`,
+      )}`,
+    );
+  }
+
   const supabase = await createClient();
   const { error } = await supabase
     .from("templates")
@@ -57,7 +75,7 @@ export async function updateTemplate(id: string, formData: FormData) {
       name,
       subject,
       body_html: bodyHtml,
-      body_text: optionalField(formData, "body_text"),
+      body_text: bodyText,
       description: optionalField(formData, "description"),
       category: optionalField(formData, "category"),
       placeholders: placeholders as never,
@@ -70,11 +88,39 @@ export async function updateTemplate(id: string, formData: FormData) {
 
   revalidatePath("/templates");
   revalidatePath(`/templates/${id}`);
-  redirect(`/templates/${id}?saved=1`);
+  const params = new URLSearchParams({ saved: "1" });
+  if (unused.length > 0) {
+    params.set("warning", `Declared but unused: ${unused.join(", ")}`);
+  }
+  redirect(`/templates/${id}?${params.toString()}`);
 }
 
 export async function deleteTemplate(id: string) {
   const supabase = await createClient();
+
+  // Triggers reference templates with ON DELETE RESTRICT — surface a
+  // human-readable error before attempting the delete, so the user knows
+  // exactly which triggers to clean up first.
+  const { data: triggers, error: triggersError } = await supabase
+    .from("triggers")
+    .select("name")
+    .eq("template_id", id);
+
+  if (triggersError) {
+    redirect(
+      `/templates/${id}?error=${encodeURIComponent(triggersError.message)}`,
+    );
+  }
+
+  if (triggers && triggers.length > 0) {
+    const names = triggers.map((t) => `"${t.name}"`).join(", ");
+    redirect(
+      `/templates/${id}?error=${encodeURIComponent(
+        `Cannot delete: ${triggers.length} trigger(s) still reference this template (${names}). Delete or repoint them first.`,
+      )}`,
+    );
+  }
+
   const { error } = await supabase.from("templates").delete().eq("id", id);
 
   if (error) {
@@ -82,6 +128,8 @@ export async function deleteTemplate(id: string) {
   }
 
   revalidatePath("/templates");
+  revalidatePath("/triggers");
+  revalidatePath("/sends");
   redirect("/templates");
 }
 

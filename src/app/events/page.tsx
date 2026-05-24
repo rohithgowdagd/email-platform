@@ -1,11 +1,11 @@
 import Link from "next/link";
 
 import { createClient } from "@/lib/supabase/server";
-import type { RunResult } from "@/lib/triggers/evaluate";
+import type { PreviewResult, RunResult } from "@/lib/triggers/evaluate";
 
 import { logout } from "../login/actions";
 
-import { fireTestEvent } from "./actions";
+import { fireTestEvent, previewTriggers } from "./actions";
 
 type FiredSummary = {
   event_id: string;
@@ -13,10 +13,18 @@ type FiredSummary = {
   runs: RunResult[];
 };
 
+type PreviewSummary = {
+  preview: PreviewResult[];
+};
+
 export default async function EventsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ fired?: string; error?: string }>;
+  searchParams: Promise<{
+    fired?: string;
+    preview?: string;
+    error?: string;
+  }>;
 }) {
   const sp = await searchParams;
 
@@ -36,6 +44,7 @@ export default async function EventsPage({
   ]);
 
   const fired = parseFired(sp.fired);
+  const preview = parsePreview(sp.preview);
   const samplePayload = buildSamplePayload(eventTypes?.[0]?.payload_schema);
 
   return (
@@ -52,6 +61,7 @@ export default async function EventsPage({
             <Link href="/events" className="text-zinc-950 dark:text-zinc-50">
               Events
             </Link>
+            <Link href="/sends">Sends</Link>
           </nav>
         </div>
         <form action={logout}>
@@ -109,6 +119,40 @@ export default async function EventsPage({
             )}
           </div>
         )}
+        {preview && (
+          <div className="mb-6 rounded-lg border border-sky-200 dark:border-sky-900/60 bg-sky-50 dark:bg-sky-950/30 p-4">
+            <p className="text-sm font-medium text-sky-800 dark:text-sky-300">
+              Engine decision preview (no event inserted, nothing sent)
+            </p>
+            {preview.preview.length === 0 ? (
+              <p className="text-sm text-sky-700 dark:text-sky-400 mt-1">
+                No active triggers exist for this event type.
+              </p>
+            ) : (
+              <ul className="mt-2 flex flex-col gap-1.5 text-sm">
+                {preview.preview.map((p) => (
+                  <li
+                    key={p.trigger_id}
+                    className="flex items-center gap-2 text-sky-800 dark:text-sky-300"
+                  >
+                    <DecisionBadge decision={p.decision} />
+                    <span className="font-medium">{p.trigger_name}</span>
+                    {p.recipient && (
+                      <span className="text-sky-700/80 dark:text-sky-400/70 text-xs">
+                        → {p.recipient}
+                      </span>
+                    )}
+                    {p.reason && (
+                      <span className="text-sky-700/80 dark:text-sky-400/70 text-xs">
+                        ({p.reason})
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
         {sp.error && (
           <div className="mb-6 rounded-md border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/30 p-3 text-sm text-red-700 dark:text-red-400">
             {sp.error}
@@ -120,8 +164,10 @@ export default async function EventsPage({
             Fire test event
           </h2>
           <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
-            Inserts an event row and runs it through the engine — any active
-            triggers that match will render their template and send via Resend.
+            <strong>Preview</strong> evaluates the engine against your payload
+            without inserting an event or sending email — useful for testing
+            rules. <strong>Fire event</strong> runs the full loop and delivers
+            via Resend.
           </p>
 
           <form action={fireTestEvent} className="flex flex-col gap-4 mt-4">
@@ -168,7 +214,14 @@ export default async function EventsPage({
               </span>
             </label>
 
-            <div>
+            <div className="flex items-center gap-3">
+              <button
+                type="submit"
+                formAction={previewTriggers}
+                className="h-10 px-5 rounded-full text-sm font-medium border border-black/12 dark:border-white/18 hover:bg-black/4 dark:hover:bg-white/4 transition-colors"
+              >
+                Preview
+              </button>
               <button
                 type="submit"
                 className="h-10 px-5 rounded-full bg-foreground text-background text-sm font-medium hover:bg-[#383838] dark:hover:bg-[#ccc] transition-colors"
@@ -236,6 +289,29 @@ export default async function EventsPage({
   );
 }
 
+function DecisionBadge({
+  decision,
+}: {
+  decision: "would_send" | "would_skip" | "no_match";
+}) {
+  const colors = {
+    would_send: "bg-emerald-500",
+    would_skip: "bg-amber-500",
+    no_match: "bg-zinc-400",
+  };
+  const labels = {
+    would_send: "would send",
+    would_skip: "would skip",
+    no_match: "no match",
+  };
+  return (
+    <span className="inline-flex items-center gap-1 text-xs uppercase tracking-wide font-medium">
+      <span className={`h-1.5 w-1.5 rounded-full ${colors[decision]}`} />
+      {labels[decision]}
+    </span>
+  );
+}
+
 function StatusBadge({ status }: { status: "sent" | "skipped" | "failed" }) {
   const colors = {
     sent: "bg-emerald-500",
@@ -250,6 +326,19 @@ function StatusBadge({ status }: { status: "sent" | "skipped" | "failed" }) {
       {status}
     </span>
   );
+}
+
+function parsePreview(raw: string | undefined): PreviewSummary | null {
+  if (!raw) return null;
+  try {
+    return JSON.parse(decodeURIComponent(raw)) as PreviewSummary;
+  } catch {
+    try {
+      return JSON.parse(raw) as PreviewSummary;
+    } catch {
+      return null;
+    }
+  }
 }
 
 function parseFired(raw: string | undefined): FiredSummary | null {

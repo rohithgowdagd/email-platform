@@ -4,6 +4,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import {
+  parsePlaceholders,
+  validatePlaceholders,
+} from "@/lib/templates/render";
 
 function field(formData: FormData, name: string): string {
   const value = formData.get(name);
@@ -43,6 +47,23 @@ export async function createTemplate(formData: FormData) {
     }
   }
 
+  const bodyText = optionalField(formData, "body_text");
+  const parsedPlaceholders = parsePlaceholders(placeholders);
+  const { undeclared, unused } = validatePlaceholders({
+    subject,
+    bodyHtml,
+    bodyText,
+    placeholders: parsedPlaceholders,
+  });
+
+  if (undeclared.length > 0) {
+    redirect(
+      `/templates/new?error=${encodeURIComponent(
+        `Body references undeclared placeholders: ${undeclared.join(", ")}`,
+      )}`,
+    );
+  }
+
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("templates")
@@ -51,7 +72,7 @@ export async function createTemplate(formData: FormData) {
       name,
       subject,
       body_html: bodyHtml,
-      body_text: optionalField(formData, "body_text"),
+      body_text: bodyText,
       description: optionalField(formData, "description"),
       category: optionalField(formData, "category"),
       placeholders: placeholders as never,
@@ -64,5 +85,9 @@ export async function createTemplate(formData: FormData) {
   }
 
   revalidatePath("/templates");
-  redirect(`/templates/${data.id}`);
+  const params = new URLSearchParams({ saved: "1" });
+  if (unused.length > 0) {
+    params.set("warning", `Declared but unused: ${unused.join(", ")}`);
+  }
+  redirect(`/templates/${data.id}?${params.toString()}`);
 }

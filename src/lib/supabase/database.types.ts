@@ -108,7 +108,7 @@ export type Database = {
           rendered_subject: string
           sent_at: string | null
           status: Database["public"]["Enums"]["send_status"]
-          template_id: string
+          template_id: string | null
           trigger_id: string | null
         }
         Insert: {
@@ -123,7 +123,7 @@ export type Database = {
           rendered_subject: string
           sent_at?: string | null
           status: Database["public"]["Enums"]["send_status"]
-          template_id: string
+          template_id?: string | null
           trigger_id?: string | null
         }
         Update: {
@@ -138,7 +138,7 @@ export type Database = {
           rendered_subject?: string
           sent_at?: string | null
           status?: Database["public"]["Enums"]["send_status"]
-          template_id?: string
+          template_id?: string | null
           trigger_id?: string | null
         }
         Relationships: [

@@ -25,6 +25,7 @@ export default async function EventTypesPage() {
             </Link>
             <Link href="/triggers">Triggers</Link>
             <Link href="/events">Events</Link>
+            <Link href="/sends">Sends</Link>
           </nav>
         </div>
         <form action={logout}>
@@ -82,6 +83,7 @@ export default async function EventTypesPage() {
                     Description
                   </th>
                   <th className="text-left font-medium px-4 py-2.5">Created</th>
+                  <th className="text-right font-medium px-4 py-2.5">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -103,6 +105,14 @@ export default async function EventTypesPage() {
                     </td>
                     <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">
                       {new Date(et.created_at).toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Link
+                        href={`/event-types/${et.id}`}
+                        className="inline-flex items-center px-2.5 py-1 rounded-md border border-black/12 dark:border-white/18 text-xs font-medium hover:bg-black/4 dark:hover:bg-white/4 transition-colors"
+                      >
+                        Edit
+                      </Link>
                     </td>
                   </tr>
                 ))}

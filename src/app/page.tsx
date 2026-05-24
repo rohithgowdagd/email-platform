@@ -68,16 +68,16 @@ export default async function Home() {
             status="ready"
           />
           <DashboardCard
-            href="#"
+            href="/sends"
             title="Sends"
             description="Audit log of every delivery attempt with status and provider IDs."
-            status="coming-soon"
+            status="ready"
           />
           <DashboardCard
-            href="#"
+            href="/templates"
             title="AI helper"
-            description="Draft new copy, rewrite tone, and generate subject line variants."
-            status="coming-soon"
+            description="Draft new copy, rewrite tone, and generate subject line variants. Lives inside each template's editor."
+            status="ready"
           />
         </div>
       </main>
