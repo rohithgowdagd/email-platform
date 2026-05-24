@@ -50,7 +50,8 @@ export default async function NewTemplatePage({
             name="body_html"
             required
             rows={10}
-            placeholder="<p>Hi {{user.name}}, thanks for upgrading to {{plan}}.</p>"
+            placeholder={`Hi {{user.name}},\n\nThanks for upgrading to {{plan}}.`}
+            hint="Type plain text — blank lines become paragraphs. HTML also works if you want links, bold, lists, etc."
           />
 
           {error && (
@@ -111,12 +112,14 @@ function FieldArea({
   required,
   rows,
   placeholder,
+  hint,
 }: {
   label: string;
   name: string;
   required?: boolean;
   rows?: number;
   placeholder?: string;
+  hint?: string;
 }) {
   return (
     <label className="flex flex-col gap-1.5">
@@ -131,6 +134,9 @@ function FieldArea({
         placeholder={placeholder}
         className="rounded-md border border-black/12 dark:border-white/18 bg-transparent px-3 py-2 text-sm font-mono outline-none focus:border-zinc-900 dark:focus:border-zinc-100 resize-y"
       />
+      {hint && (
+        <span className="text-xs text-zinc-500 dark:text-zinc-500">{hint}</span>
+      )}
     </label>
   );
 }

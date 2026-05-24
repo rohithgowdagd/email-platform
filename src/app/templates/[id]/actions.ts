@@ -6,9 +6,11 @@ import { redirect } from "next/navigation";
 import { sendEmail } from "@/lib/resend";
 import { createClient } from "@/lib/supabase/server";
 import {
+  autoParagraph,
   derivePlaceholders,
   parsePlaceholders,
   renderTemplate,
+  setByPath,
   type Placeholder,
 } from "@/lib/templates/render";
 
@@ -33,7 +35,8 @@ export async function updateTemplate(id: string, formData: FormData) {
     );
   }
 
-  const placeholders = derivePlaceholders({ subject, bodyHtml });
+  const wrappedBody = autoParagraph(bodyHtml);
+  const placeholders = derivePlaceholders({ subject, bodyHtml: wrappedBody });
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -41,7 +44,7 @@ export async function updateTemplate(id: string, formData: FormData) {
     .update({
       name,
       subject,
-      body_html: bodyHtml,
+      body_html: wrappedBody,
       placeholders: placeholders as never,
     })
     .eq("id", id);
@@ -95,7 +98,6 @@ export async function deleteTemplate(id: string) {
 
 export async function sendTestEmail(id: string, formData: FormData) {
   const recipient = field(formData, "recipient");
-  const rawValues = field(formData, "values");
 
   if (!recipient) {
     redirect(
@@ -103,19 +105,13 @@ export async function sendTestEmail(id: string, formData: FormData) {
     );
   }
 
-  let values: Record<string, unknown> = {};
-  if (rawValues.length > 0) {
-    try {
-      const parsed: unknown = JSON.parse(rawValues);
-      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-        throw new Error("values must be a JSON object");
-      }
-      values = parsed as Record<string, unknown>;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      redirect(
-        `/templates/${id}?test_error=${encodeURIComponent(`Invalid values JSON: ${message}`)}`,
-      );
+  // Read per-placeholder inputs (name="val_user.name", etc.) and rebuild the
+  // nested values object the renderer expects via dot-notation lookup.
+  const values: Record<string, unknown> = {};
+  for (const [key, value] of formData.entries()) {
+    if (key.startsWith("val_") && typeof value === "string") {
+      const path = key.slice(4);
+      if (path) setByPath(values, path, value);
     }
   }
 

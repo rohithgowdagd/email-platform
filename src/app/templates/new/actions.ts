@@ -4,7 +4,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
-import { derivePlaceholders, slugify } from "@/lib/templates/render";
+import {
+  autoParagraph,
+  derivePlaceholders,
+  slugify,
+} from "@/lib/templates/render";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -44,7 +48,8 @@ export async function createTemplate(formData: FormData) {
 
   const supabase = await createClient();
   const slug = await uniqueSlug(supabase, slugify(name));
-  const placeholders = derivePlaceholders({ subject, bodyHtml });
+  const wrappedBody = autoParagraph(bodyHtml);
+  const placeholders = derivePlaceholders({ subject, bodyHtml: wrappedBody });
 
   const { data, error } = await supabase
     .from("templates")
@@ -52,7 +57,7 @@ export async function createTemplate(formData: FormData) {
       slug,
       name,
       subject,
-      body_html: bodyHtml,
+      body_html: wrappedBody,
       body_text: null,
       description: null,
       category: null,

@@ -83,6 +83,43 @@ export function derivePlaceholders(input: {
     .map((name) => ({ name, required: false, sample: "" }));
 }
 
+// If the input doesn't contain any HTML tags, wrap each paragraph (separated
+// by blank lines) in <p>. Lets a non-engineer type prose and still produce
+// an email that renders as expected. If the input already contains tags,
+// leave it alone — assume the author knows what they're doing.
+const HTML_TAG_RE = /<[a-z][^>]*>/i;
+
+export function autoParagraph(input: string): string {
+  const trimmed = input.trim();
+  if (!trimmed) return "";
+  if (HTML_TAG_RE.test(trimmed)) return trimmed;
+  return trimmed
+    .split(/\n\s*\n+/)
+    .map((paragraph) => `<p>${paragraph.trim().replace(/\n/g, "<br>")}</p>`)
+    .join("\n");
+}
+
+// Construct a nested object from dot-notation keys. Used by the send-test
+// form to turn flat per-placeholder inputs (`user.name`, `plan`, ...) back
+// into the nested payload shape the renderer's lookup expects.
+export function setByPath(
+  target: Record<string, unknown>,
+  path: string,
+  value: unknown,
+): void {
+  const keys = path.split(".");
+  let cursor: Record<string, unknown> = target;
+  for (let i = 0; i < keys.length - 1; i++) {
+    const key = keys[i];
+    const next = cursor[key];
+    if (!next || typeof next !== "object" || Array.isArray(next)) {
+      cursor[key] = {};
+    }
+    cursor = cursor[key] as Record<string, unknown>;
+  }
+  cursor[keys[keys.length - 1]] = value;
+}
+
 // Convert a human name into a URL-safe slug. Used to auto-generate the
 // template slug from the name so the marketer never sees the "slug" concept.
 export function slugify(name: string): string {

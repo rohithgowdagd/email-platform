@@ -2,10 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
-import {
-  parsePlaceholders,
-  type Placeholder,
-} from "@/lib/templates/render";
+import { parsePlaceholders } from "@/lib/templates/render";
 
 import { deleteTemplate, sendTestEmail, updateTemplate } from "./actions";
 import { AiHelper } from "./ai-helper";
@@ -47,7 +44,6 @@ export default async function EditTemplatePage({
     .order("name");
 
   const placeholders = parsePlaceholders(template.placeholders);
-  const sampleValues = buildSampleValues(placeholders);
 
   const updateAction = updateTemplate.bind(null, id);
   const deleteAction = deleteTemplate.bind(null, id);
@@ -151,7 +147,7 @@ export default async function EditTemplatePage({
             required
             rows={12}
             defaultValue={template.body_html}
-            mono
+            hint="Type plain text — blank lines become paragraphs. HTML also works if you want links, bold, lists, etc."
           />
 
           {placeholders.length > 0 && (
@@ -203,14 +199,35 @@ export default async function EditTemplatePage({
               required
               placeholder="you@example.com"
             />
-            <FieldArea
-              label="Sample values"
-              name="values"
-              rows={6}
-              mono
-              defaultValue={JSON.stringify(sampleValues, null, 2)}
-              hint="JSON object. Use nested keys to match dot-notation placeholders (e.g. {{user.name}} resolves user.name)."
-            />
+            {placeholders.length === 0 ? (
+              <p className="text-xs text-zinc-500 dark:text-zinc-500 italic">
+                This template has no placeholders — nothing extra to fill in.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-3">
+                <p className="text-xs text-zinc-500 dark:text-zinc-500">
+                  Fill in a sample value for each placeholder. These get
+                  substituted into the email at send time.
+                </p>
+                {placeholders.map((p) => (
+                  <label
+                    key={p.name}
+                    className="flex flex-col gap-1.5"
+                  >
+                    <span className="text-sm font-medium">
+                      <code className="font-mono">{`{{${p.name}}}`}</code>
+                    </span>
+                    <input
+                      type="text"
+                      name={`val_${p.name}`}
+                      defaultValue={p.sample ?? ""}
+                      placeholder="Example value"
+                      className="h-10 rounded-md border border-black/12 dark:border-white/18 bg-transparent px-3 text-sm outline-none focus:border-zinc-900 dark:focus:border-zinc-100"
+                    />
+                  </label>
+                ))}
+              </div>
+            )}
             <div>
               <button
                 type="submit"
@@ -224,35 +241,6 @@ export default async function EditTemplatePage({
       </main>
     </div>
   );
-}
-
-function buildSampleValues(
-  placeholders: Placeholder[],
-): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-  for (const p of placeholders) {
-    if (p.sample === undefined) continue;
-    setByPath(result, p.name, p.sample);
-  }
-  return result;
-}
-
-function setByPath(
-  target: Record<string, unknown>,
-  path: string,
-  value: unknown,
-): void {
-  const keys = path.split(".");
-  let cursor: Record<string, unknown> = target;
-  for (let i = 0; i < keys.length - 1; i++) {
-    const key = keys[i];
-    const next = cursor[key];
-    if (!next || typeof next !== "object" || Array.isArray(next)) {
-      cursor[key] = {};
-    }
-    cursor = cursor[key] as Record<string, unknown>;
-  }
-  cursor[keys[keys.length - 1]] = value;
 }
 
 function Field({
