@@ -66,6 +66,36 @@ export function extractReferences(text: string): Set<string> {
   return refs;
 }
 
+// Derive the placeholders array from template content. With the simplified
+// UI, the marketer doesn't declare placeholders explicitly — every `{{path}}`
+// in the subject or body is auto-registered, with no required/sample metadata.
+// Missing values render as empty strings.
+export function derivePlaceholders(input: {
+  subject: string;
+  bodyHtml: string;
+}): Placeholder[] {
+  const refs = new Set<string>([
+    ...extractReferences(input.subject),
+    ...extractReferences(input.bodyHtml),
+  ]);
+  return Array.from(refs)
+    .sort()
+    .map((name) => ({ name, required: false, sample: "" }));
+}
+
+// Convert a human name into a URL-safe slug. Used to auto-generate the
+// template slug from the name so the marketer never sees the "slug" concept.
+export function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+}
+
 export type PlaceholderValidationInput = {
   subject: string;
   bodyHtml: string;

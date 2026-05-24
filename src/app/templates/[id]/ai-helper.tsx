@@ -103,7 +103,7 @@ export function AiHelper({ templateId }: { templateId: string }) {
           <h2 className="text-lg font-semibold tracking-tight">AI helper</h2>
           <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
             Draft copy, rewrite tone, or generate subject line variants with
-            Claude. Suggestions preview here before they touch the template.
+            help of AI. Suggestions preview here before they touch the template.
           </p>
         </div>
       </div>

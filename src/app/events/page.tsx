@@ -56,11 +56,7 @@ export default async function EventsPage({
           </Link>
           <nav className="flex items-center gap-4 text-sm text-zinc-600 dark:text-zinc-400">
             <Link href="/templates">Templates</Link>
-            <Link href="/event-types">Event types</Link>
             <Link href="/triggers">Triggers</Link>
-            <Link href="/events" className="text-zinc-950 dark:text-zinc-50">
-              Events
-            </Link>
             <Link href="/sends">Sends</Link>
           </nav>
         </div>
@@ -198,20 +194,6 @@ export default async function EventsPage({
                 defaultValue={samplePayload}
                 className="rounded-md border border-black/12 dark:border-white/18 bg-transparent px-3 py-2 text-sm font-mono outline-none focus:border-zinc-900 dark:focus:border-zinc-100 resize-y"
               />
-            </label>
-
-            <label className="flex flex-col gap-1.5">
-              <span className="text-sm font-medium">Idempotency key</span>
-              <input
-                type="text"
-                name="idempotency_key"
-                placeholder="optional"
-                className="h-10 rounded-md border border-black/12 dark:border-white/18 bg-transparent px-3 text-sm outline-none focus:border-zinc-900 dark:focus:border-zinc-100"
-              />
-              <span className="text-xs text-zinc-500 dark:text-zinc-500">
-                If provided, a second fire with the same key short-circuits
-                instead of re-processing.
-              </span>
             </label>
 
             <div className="flex items-center gap-3">

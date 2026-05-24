@@ -22,11 +22,9 @@ export default async function TriggersPage() {
           </Link>
           <nav className="flex items-center gap-4 text-sm text-zinc-600 dark:text-zinc-400">
             <Link href="/templates">Templates</Link>
-            <Link href="/event-types">Event types</Link>
             <Link href="/triggers" className="text-zinc-950 dark:text-zinc-50">
               Triggers
             </Link>
-            <Link href="/events">Events</Link>
             <Link href="/sends">Sends</Link>
           </nav>
         </div>
@@ -48,12 +46,26 @@ export default async function TriggersPage() {
               Rules that decide which template fires for which event.
             </p>
           </div>
-          <Link
-            href="/triggers/new"
-            className="h-9 inline-flex items-center px-4 rounded-full bg-foreground text-background text-sm font-medium hover:bg-[#383838] dark:hover:bg-[#ccc] transition-colors"
-          >
-            New trigger
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/events"
+              className="text-sm text-zinc-600 dark:text-zinc-400 hover:underline"
+            >
+              Fire test event
+            </Link>
+            <Link
+              href="/event-types"
+              className="text-sm text-zinc-600 dark:text-zinc-400 hover:underline"
+            >
+              Event types
+            </Link>
+            <Link
+              href="/triggers/new"
+              className="h-9 inline-flex items-center px-4 rounded-full bg-foreground text-background text-sm font-medium hover:bg-[#383838] dark:hover:bg-[#ccc] transition-colors"
+            >
+              New trigger
+            </Link>
+          </div>
         </div>
 
         {error ? (

@@ -1,7 +1,6 @@
 import Link from "next/link";
 
 import { createEventType } from "./actions";
-import { PayloadSchemaField } from "./payload-schema-field";
 
 export default async function NewEventTypePage({
   searchParams,
@@ -24,8 +23,9 @@ export default async function NewEventTypePage({
             New event type
           </h1>
           <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
-            An event type defines a category of things that can happen in your
-            product. Triggers fire on specific event types.
+            A category of thing that can happen in your product (e.g.{" "}
+            <code className="font-mono">user.upgraded</code>). Triggers fire on
+            specific event types.
           </p>
         </div>
 
@@ -50,18 +50,6 @@ export default async function NewEventTypePage({
               unique.
             </span>
           </label>
-
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium">Description</span>
-            <textarea
-              name="description"
-              rows={2}
-              placeholder="Fired when a user upgrades from free to a paid plan."
-              className="rounded-md border border-black/12 dark:border-white/18 bg-transparent px-3 py-2 text-sm outline-none focus:border-zinc-900 dark:focus:border-zinc-100 resize-y"
-            />
-          </label>
-
-          <PayloadSchemaField />
 
           {error && (
             <p className="text-sm text-red-600 dark:text-red-400">{error}</p>

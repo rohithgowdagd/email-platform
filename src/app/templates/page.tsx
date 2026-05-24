@@ -39,9 +39,7 @@ export default async function TemplatesPage({
             <Link href="/templates" className="text-zinc-950 dark:text-zinc-50">
               Templates
             </Link>
-            <Link href="/event-types">Event types</Link>
             <Link href="/triggers">Triggers</Link>
-            <Link href="/events">Events</Link>
             <Link href="/sends">Sends</Link>
           </nav>
         </div>
